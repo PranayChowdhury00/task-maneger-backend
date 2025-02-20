@@ -4,7 +4,7 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
-
+const { ObjectId } = require('mongodb'); 
 const app = express();
 
 const port = process.env.PORT || 5000;
@@ -38,28 +38,15 @@ async function run() {
         const tasksCollection = db.collection("tasks"); // Collection for tasks
 
         // 🔹 Save User to DB and generate JWT
-        // After importing necessary modules
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
-
-// 🔹 Save User to DB and Generate JWT
-app.post('/user', async (req, res) => {
-    const { name, email, uid } = req.body;
-    const data = { uid, name, email };
-
-    try {
-        const result = await usersCollection.insertOne(data);
-
-        // Generate a JWT token
-        const token = jwt.sign({ uid, email }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-        res.cookie('token', token, { httpOnly: true }); // Optional: set token as a cookie
-        res.status(201).json({ success: true, token }); // Send token back to the client
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'User registration failed', error });
-    }
-});
-
+        app.post('/user', async (req, res) => {
+            const { name, email, uid } = req.body;
+            const data = { uid, name, email }; // Save user details without password
+            const result = await usersCollection.insertOne(data);
+            
+            // Generate JWT
+            const token = jwt.sign({ uid, email }, process.env.JWT_SECRET, { expiresIn: '1h' }); // Set expiration as needed
+            res.status(201).json({ result, token }); // Return the created user and token
+        });
 
         // 🔹 Add a Task (if needed)
         app.post('/tasks', async (req, res) => {
@@ -77,11 +64,22 @@ app.post('/user', async (req, res) => {
         });
 
         // 🔹 Update Task
-        app.put('/tasks/:taskId', async (req, res) => {
+        app.patch('/tasks/:taskId', async (req, res) => {
             const { taskId } = req.params;
-            const updateData = { $set: req.body };
-            const result = await tasksCollection.updateOne({ _id: new ObjectId(taskId) }, updateData);
-            res.json(result); // Return the updated task
+           
+            const updateData = { $set: req.body }; // Update body as per request
+           console.log(updateData)
+            try {
+                const result = await tasksCollection.updateOne({ _id: new ObjectId(taskId) }, updateData);
+                console.log("Update Result:", result)
+                if (result.modifiedCount > 0) {
+                    res.json({ modifiedCount: result.modifiedCount });
+                } else {
+                    res.status(404).json({ message: "Task not found or no changes made." });
+                }
+            } catch (error) {
+                res.status(500).json({ message: "Error updating task." });
+            }
         });
 
         // 🔹 Delete Task
