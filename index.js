@@ -38,15 +38,28 @@ async function run() {
         const tasksCollection = db.collection("tasks"); // Collection for tasks
 
         // 🔹 Save User to DB and generate JWT
-        app.post('/user', async (req, res) => {
-            const { name, email, uid } = req.body;
-            const data = { uid, name, email }; // Save user details without password
-            const result = await usersCollection.insertOne(data);
-            
-            // Generate JWT
-            const token = jwt.sign({ uid, email }, process.env.JWT_SECRET, { expiresIn: '1h' }); // Set expiration as needed
-            res.status(201).json({ result, token }); // Return the created user and token
-        });
+        // After importing necessary modules
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+// 🔹 Save User to DB and Generate JWT
+app.post('/user', async (req, res) => {
+    const { name, email, uid } = req.body;
+    const data = { uid, name, email };
+
+    try {
+        const result = await usersCollection.insertOne(data);
+
+        // Generate a JWT token
+        const token = jwt.sign({ uid, email }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        res.cookie('token', token, { httpOnly: true }); // Optional: set token as a cookie
+        res.status(201).json({ success: true, token }); // Send token back to the client
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'User registration failed', error });
+    }
+});
+
 
         // 🔹 Add a Task (if needed)
         app.post('/tasks', async (req, res) => {
